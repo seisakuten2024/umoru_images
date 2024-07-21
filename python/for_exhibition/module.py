@@ -4,32 +4,35 @@ import MeCab
 from wordcloud import WordCloud, ImageColorGenerator
 import matplotlib.pyplot as plt
 
+# fontの指定
+font_path="/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"
+# 色の設定
+colormap="Paired"
+# 形の設定
+img_color = np.array(Image.open("/home/leus/Downloads/heart.png"))
+mecab = MeCab.Tagger("-d /var/lib/mecab/dic/ipadic-utf8 -Ochasen")
+
+def extract_noun(line):
+    noun_list = []
+    node = mecab.parseToNode(line)
+    while node:
+        if node.feature.split(",")[0] == "名詞" and node.feature.split(",")[1] in ["一般", "固有名詞"]:
+            noun_list.append(node.surface)
+        node = node.next
+    return noun_list
+
 #関数の設定
 def mecab_tokenizer(path):
     # mecab= MeCab.Tagger('-Ochasen')
-    mecab = MeCab.Tagger("-d /var/lib/mecab/dic/ipadic-utf8 -Ochasen")
+    
     token_list = []
     with open(path) as f:
+
         lines = f.readlines()
         for l in lines:
-            node = mecab.parseToNode(l)
-            while node:
-                if node.feature.split(",")[0] == "名詞" and node.feature.split(",")[1] in ["一般", "固有名詞"]:
-                    token_list.append(node.surface)
-                node = node.next
+            token_list += extract_noun(l)
     return ' '.join(token_list)
 
-font_path="/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"
-#関数の実行
-# words = mecab_tokenizer("data/test-blog.txt")
-# words = mecab_tokenizer("data/test0714.txt")
-
-#色の設定
-colormap="Paired"
-
-img_color = np.array(Image.open("/home/leus/Downloads/heart.png"))
-# img_color = np.array(Image.open("data/heart.jpg"))
-# img_color = np.array(Image.open("data/heart.png"))
 def generate_wordcloud(file_path):
     words = mecab_tokenizer(file_path)
     wordcloud = WordCloud(
