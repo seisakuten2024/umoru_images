@@ -20,6 +20,8 @@ import re
 import datetime
 import requests
 from sound_play.libsoundplay import SoundClient
+
+sound_client = SoundClient(sound_action='robotsound_jp', sound_topic='robotsound_jp')
 client = OpenAI()
 
 raw_data_path = "data/raw/test0719.txt"
@@ -27,6 +29,8 @@ raw_data_path_for_wordcloud = "data/raw/test0719_for_wordcloud.txt"
 analyzed_data_path = "data/analyzed/test0719.json"
 html_data_path = "data/html/test0719.html"
 print("generate picture")
+
+interaction_flag = False
 
 class speechSubGeneratedFilePubNode():
     """
@@ -37,42 +41,43 @@ class speechSubGeneratedFilePubNode():
         self.sub = rospy.Subscriber("/speech_to_text", SpeechRecognitionCandidates , self.callback)
         # Publisherの作成
         self.pub = rospy.Publisher('/generated_file', Bool, queue_size=1)
-        # self.pub = rospy.Publisher('/aaa', Bool, queue_size=1)
-        # self.pub = rospy.Publisher('/aaa', String, queue_size=1)
         time.sleep(1)
 
     def callback(self, data):
-        pub_msg = Bool()
+        global interaction_flag
+        if interaction_flag == True and data.transcript[0] != "またね" and data.transcript[0] != "また":
+            interaction_flag = False
+            pub_msg = Bool()
 
-        speech = data.transcript
-        print(speech[0])
-        rospy.loginfo(rospy.get_caller_id()+"I heard %s", speech)
+            speech = data.transcript
+            print(speech[0])
+            rospy.loginfo(rospy.get_caller_id()+"I heard %s", speech)
 
-        # 音声認識情報をファイルに書き込む
-        with open(raw_data_path, mode='a', newline="\n") as raw_file:
-            with open(raw_data_path_for_wordcloud, mode="a", newline="\n") as raw_file_for_wordcloud:
-                raw_file_for_wordcloud.write(speech[0]+ "\n")
-            raw_file.write(speech[0] + "\n")
-        raw_file.close()
-        raw_file_for_wordcloud.close()
+            # 音声認識情報をファイルに書き込む
+            with open(raw_data_path, mode='a', newline="\n") as raw_file:
+                with open(raw_data_path_for_wordcloud, mode="a", newline="\n") as raw_file_for_wordcloud:
+                    raw_file_for_wordcloud.write(speech[0]+ "\n")
+                raw_file.write(speech[0] + "\n")
+            raw_file.close()
+            raw_file_for_wordcloud.close()
 
-        # 音声認識情報から名詞だけを抽出し、jsonファイルのカウントを更新する書き込む
-        with open(analyzed_data_path, mode='rt') as analyzed_file: 
-            noun_counter_dict = json.load(analyzed_file)
-        analyzed_file.close()
-        noun_list = module.extract_noun(speech[0])
-        for noun in noun_list:
-            if noun_counter_dict.get(noun) == None:
-                noun_counter_dict[noun] = 1
-            else:
-                noun_counter_dict[noun] += 1
-        with open(analyzed_data_path, mode="wt") as analyzed_file:
-	        json.dump(noun_counter_dict, analyzed_file, ensure_ascii=False)
-        analyzed_file.close()
-        print("json file done")
+            # 音声認識情報から名詞だけを抽出し、jsonファイルのカウントを更新する書き込む
+            with open(analyzed_data_path, mode='rt') as analyzed_file: 
+                noun_counter_dict = json.load(analyzed_file)
+            analyzed_file.close()
+            noun_list = module.extract_noun(speech[0])
+            for noun in noun_list:
+                if noun_counter_dict.get(noun) == None:
+                    noun_counter_dict[noun] = 1
+                else:
+                    noun_counter_dict[noun] += 1
+            with open(analyzed_data_path, mode="wt") as analyzed_file:
+                json.dump(noun_counter_dict, analyzed_file, ensure_ascii=False)
+            analyzed_file.close()
+            print("json file done")
 
-        pub_msg.data = True
-        self.publish(pub_msg)
+            pub_msg.data = True
+            self.publish(pub_msg)
 
     def publish(self, data):
         self.pub.publish(data)
@@ -170,6 +175,7 @@ class generateTextResponseAndPromptForPictureNode():
 class generatePictureNode():
     def __init__(self):
         self.sub = rospy.Subscriber("/prompt_to_generate_picture", String, self.callback)
+        self.pub = rospy.Publisher("/generated_picture", Bool, queue_size = 1)
         print("generate picture")
         time.sleep(1)
 
@@ -177,6 +183,9 @@ class generatePictureNode():
         image_url = self.generate_umoru_picture_response(data.data)
         self.generate_HTML(html_data_path, image_url)
         self.save_image(image_url)
+        pub_msg = Bool()
+        pub_msg.data = True
+        self.publish(pub_msg)
 
     def generate_umoru_picture_response(self, prompt):
         response = client.images.generate(
@@ -197,10 +206,8 @@ class generatePictureNode():
         with open(path) as html_file:
             lines = html_file.readlines()
         for i in range(len(lines)):
-            print(lines[i])
             if "img src" in lines[i]:
                 lines[i] = new_line
-                print("aaa")
                 break
         with open(path, mode="w") as html_file:
             html_file.writelines(lines)
@@ -221,6 +228,10 @@ class generatePictureNode():
         plt.imshow(img)
         plt.show() """
         img.save(filename)
+    
+    def publish(self, data):
+        self.pub.publish(data)
+
 
 class generateWordcloudNode():
     def __init__(self):
@@ -241,9 +252,38 @@ class speakGeneratedText():
         # Subscriberの作成
         self.sub = rospy.Subscriber("/text_response", String, self.callback)
 
-    def callback(self, data):        
-        client = SoundClient(sound_action='robotsound_jp', sound_topic='robotsound_jp')
-        client.say(data.data, voice='白上虎太郎-ノーマル')
+    def callback(self, data):
+        time.sleep(3)
+        # sound_client.say("お、いいね、教えてくれてありがとう。", voice='白上虎太郎-ノーマル')
+        sound_client.say("お、いいね、教えてくれてありがとう。" + data.data)
+
+class speakEndPhrase():
+    def __init__(self):
+        time.sleep(1)
+        print("speak end phrase")
+        self.sub = rospy.Subscriber("/generated_picture", Bool, self.callback)
+    
+    def callback(self, data):
+        time.sleep(15)
+        global interaction_flag
+        sound_client.say("ほかにはなにかあるかな。またね、と言ってくれたらお別れだよ。")
+        interaction_flag = True
+
+class getStartAndEndTiming():
+    def __init__(self):
+        time.sleep(2)
+        self.sub = rospy.Subscriber("/speech_to_text", SpeechRecognitionCandidates , self.callback)
+    
+    def callback(self, data):
+        speech = data.transcript
+        print(speech[0])
+        global interaction_flag
+        if speech[0] == "初めまして":
+            sound_client.say("こんにちは。ぼくはウモルといってね　　　人間のやりたいことを聞いて、いろんな想像をふくらませるのが好きなんだ。　　　　あなたのやりたいことを教えてくれる？")
+            interaction_flag = True
+        elif speech[0] == "またね" or speech[0] == "また":
+            interaction_flag = False
+            sound_client.say("またね、またやりたいことが思い浮かんだら教えてね")
 
 if __name__ == '__main__':
     rospy.init_node("test_node")
@@ -252,10 +292,12 @@ if __name__ == '__main__':
     node3 = generateTextResponseAndPromptForPictureNode()
     node4 = generatePictureNode()
     node5 = speakGeneratedText()
-    
     # node3 = generatePictureNode()
     # node4 = generateSentenceNode()
+    node7 = speakEndPhrase()
     node5 = generateWordcloudNode()
+    node6 = getStartAndEndTiming()
+
 
     while not rospy.is_shutdown():
         rospy.sleep(0.1)
