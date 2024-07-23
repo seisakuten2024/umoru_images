@@ -33,7 +33,7 @@ def mecab_tokenizer(path):
             token_list += extract_noun(l)
     return ' '.join(token_list)
 
-def generate_wordcloud(file_path):
+def generate_wordcloud(file_path, save_image_path, display_image_path):
     words = mecab_tokenizer(file_path)
     wordcloud = WordCloud(
         background_color="white",
@@ -41,16 +41,22 @@ def generate_wordcloud(file_path):
         height=800,
         font_path=font_path,
         colormap = colormap,
-        mask=img_color,
+        # mask=img_color,
         stopwords=["する", "ある", "こと", "ない"],
         max_words=100,
     ).generate(words)
 
+    plt.figure(figsize=(10,10))
+    
+
     # image_colors = ImageColorGenerator(img_color)
-    plt.figure(figsize=(10, 10))
+    # plt.figure(figsize=(10, 10))
     plt.imshow(wordcloud, interpolation="bilinear")
     # plt.imshow(wordcloud.recolor(color_func=image_colors), interpolation="bilinear")
     plt.axis("off")
-    plt.show()
+    plt.savefig(save_image_path)
+    plt.savefig(display_image_path)
+    plt.close()
+    # plt.show()
         
 # generate_wordcloud("data/test0714.txt")

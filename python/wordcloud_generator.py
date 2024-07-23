@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# ファイルからwordcloudを作る
 import rospy
 from speech_recognition_msgs.msg import SpeechRecognitionCandidates
 from generate_wordcloud import generate_wordcloud

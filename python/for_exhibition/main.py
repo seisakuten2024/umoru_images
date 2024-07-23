@@ -19,12 +19,14 @@ from openai import OpenAI
 import re
 import datetime
 import requests
+from sound_play.libsoundplay import SoundClient
 client = OpenAI()
 
 raw_data_path = "data/raw/test0719.txt"
+raw_data_path_for_wordcloud = "data/raw/test0719_for_wordcloud.txt"
 analyzed_data_path = "data/analyzed/test0719.json"
 html_data_path = "data/html/test0719.html"
-
+print("generate picture")
 
 class speechSubGeneratedFilePubNode():
     """
@@ -48,10 +50,13 @@ class speechSubGeneratedFilePubNode():
 
         # 音声認識情報をファイルに書き込む
         with open(raw_data_path, mode='a', newline="\n") as raw_file:
+            with open(raw_data_path_for_wordcloud, mode="a", newline="\n") as raw_file_for_wordcloud:
+                raw_file_for_wordcloud.write(speech[0]+ "\n")
             raw_file.write(speech[0] + "\n")
         raw_file.close()
+        raw_file_for_wordcloud.close()
 
-        # 音声認識情報から名詞だけを抽出    node2 = generatePictureNode()し、jsonファイルのカウントを更新する書き込む
+        # 音声認識情報から名詞だけを抽出し、jsonファイルのカウントを更新する書き込む
         with open(analyzed_data_path, mode='rt') as analyzed_file: 
             noun_counter_dict = json.load(analyzed_file)
         analyzed_file.close()
@@ -128,6 +133,7 @@ class generateTextResponseAndPromptForPictureNode():
         self.sub = rospy.Subscriber("/prompt_to_generate_sentence", String, self.callback)
         self.pub_prompt = rospy.Publisher('/prompt_to_generate_picture', String, queue_size=1)
         self.pub_response = rospy.Publisher('/text_response', String, queue_size=1)
+        print("generate prompt")
         time.sleep(1)
 
     def callback(self, data):
@@ -164,6 +170,7 @@ class generateTextResponseAndPromptForPictureNode():
 class generatePictureNode():
     def __init__(self):
         self.sub = rospy.Subscriber("/prompt_to_generate_picture", String, self.callback)
+        print("generate picture")
         time.sleep(1)
 
     def callback(self, data):
@@ -200,7 +207,7 @@ class generatePictureNode():
 
     def save_image(self, url):
         now = datetime.datetime.now()
-        filename = "data/images/log_" + now.strftime('%Y%m%d_%H%M%S') + ".png"
+        filename = "data/images/pictures/log_" + now.strftime('%Y%m%d_%H%M%S') + ".png"
         response = requests.get(url)
         img = Image.open(BytesIO(response.content))
         """ # 画像を表示
@@ -222,8 +229,21 @@ class generateWordcloudNode():
         self.sub = rospy.Subscriber("/generated_file", Bool, self.callback)
 
     def callback(self, data):
-        module.generate_wordcloud(raw_data_path)
+        now = datetime.datetime.now()
+        filename_for_save = "data/images/wordclouds/log_" + now.strftime('%Y%m%d_%H%M%S') + ".png"
+        filename_for_display = "data/images/wordclouds/display.png"
+        module.generate_wordcloud(raw_data_path_for_wordcloud, filename_for_save, filename_for_display)
         print("making wordcloud")
+
+class speakGeneratedText():
+    def __init__(self):
+        time.sleep(3)
+        # Subscriberの作成
+        self.sub = rospy.Subscriber("/text_response", String, self.callback)
+
+    def callback(self, data):        
+        client = SoundClient(sound_action='robotsound_jp', sound_topic='robotsound_jp')
+        client.say(data.data, voice='白上虎太郎-ノーマル')
 
 if __name__ == '__main__':
     rospy.init_node("test_node")
@@ -231,10 +251,11 @@ if __name__ == '__main__':
     node2 = generatePromptForSentenceNode()
     node3 = generateTextResponseAndPromptForPictureNode()
     node4 = generatePictureNode()
+    node5 = speakGeneratedText()
     
     # node3 = generatePictureNode()
     # node4 = generateSentenceNode()
-    # node5 = generateWordcloudNode()
+    node5 = generateWordcloudNode()
 
     while not rospy.is_shutdown():
         rospy.sleep(0.1)
