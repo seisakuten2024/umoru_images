@@ -1,3 +1,8 @@
 .\#*
 *~
 
+umoru_images/data/
+umoru_images/styles/
+umoru_images/test/
+umoru_images/__pycache__/
+umoru_images/for_exhibition/__pycache__/
