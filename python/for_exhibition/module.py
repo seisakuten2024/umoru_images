@@ -3,6 +3,7 @@ import numpy as np
 import MeCab
 from wordcloud import WordCloud, ImageColorGenerator
 import matplotlib.pyplot as plt
+import random, string
 
 # fontの指定
 font_path="/usr/share/fonts/truetype/fonts-japanese-gothic.ttf"
@@ -60,3 +61,7 @@ def generate_wordcloud(file_path, save_image_path, display_image_path):
     # plt.show()
         
 # generate_wordcloud("data/test0714.txt")
+
+def randomname():
+   randlst = [random.choice(string.ascii_letters + string.digits) for i in range(5)]
+   return ''.join(randlst)

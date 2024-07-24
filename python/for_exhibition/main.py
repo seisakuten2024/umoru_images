@@ -20,17 +20,23 @@ import re
 import datetime
 import requests
 from sound_play.libsoundplay import SoundClient
+from umoru_arm import MotionClient
 
 sound_client = SoundClient(sound_action='robotsound_jp', sound_topic='robotsound_jp')
+rarm_client = MotionClient("rarm")
 client = OpenAI()
 
 raw_data_path = "data/raw/test0719.txt"
 raw_data_path_for_wordcloud = "data/raw/test0719_for_wordcloud.txt"
 analyzed_data_path = "data/analyzed/test0719.json"
 html_data_path = "data/html/test0719.html"
+save_data_path = "data/txt/save_text.txt"
 print("generate picture")
 
 interaction_flag = False
+participants_id = "AAAAA"
+
+
 
 class speechSubGeneratedFilePubNode():
     """
@@ -54,10 +60,13 @@ class speechSubGeneratedFilePubNode():
             rospy.loginfo(rospy.get_caller_id()+"I heard %s", speech)
 
             # 音声認識情報をファイルに書き込む
-            with open(raw_data_path, mode='a', newline="\n") as raw_file:
-                with open(raw_data_path_for_wordcloud, mode="a", newline="\n") as raw_file_for_wordcloud:
-                    raw_file_for_wordcloud.write(speech[0]+ "\n")
-                raw_file.write(speech[0] + "\n")
+            with open(save_data_path, mode = "a") as save_file:
+                with open(raw_data_path, mode='a', newline="\n") as raw_file:
+                    with open(raw_data_path_for_wordcloud, mode="a", newline="\n") as raw_file_for_wordcloud:
+                        raw_file_for_wordcloud.write(speech[0]+ "\n")
+                    raw_file.write(speech[0] + "\n")
+                save_file.write(speech[0] + "\n")
+            save_file.close()
             raw_file.close()
             raw_file_for_wordcloud.close()
 
@@ -143,7 +152,12 @@ class generateTextResponseAndPromptForPictureNode():
 
     def callback(self, data):
         sentence_response = self.generate_umoru_text_response(data.data)
-        print("umoruの返答" + sentence_response)
+        print("umoruの返答：　" + sentence_response)
+
+        with open(save_data_path, mode="a") as save_file:
+            save_file.write("【umoruの返答】" + "\n" + sentence_response + "\n")
+        save_file.close()
+
         pub_response_msg = String()
         pub_response_msg.data = sentence_response
         self.publish_response(pub_response_msg)
@@ -214,7 +228,7 @@ class generatePictureNode():
 
     def save_image(self, url):
         now = datetime.datetime.now()
-        filename = "data/images/pictures/log_" + now.strftime('%Y%m%d_%H%M%S') + ".png"
+        filename = "data/images/pictures/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" + participants_id + ".png"
         response = requests.get(url)
         img = Image.open(BytesIO(response.content))
         """ # 画像を表示
@@ -240,8 +254,9 @@ class generateWordcloudNode():
         self.sub = rospy.Subscriber("/generated_file", Bool, self.callback)
 
     def callback(self, data):
+        global participants_id
         now = datetime.datetime.now()
-        filename_for_save = "data/images/wordclouds/log_" + now.strftime('%Y%m%d_%H%M%S') + ".png"
+        filename_for_save =  "data/images/wordclouds/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" +  participants_id + ".png"
         filename_for_display = "data/images/wordclouds/display.png"
         module.generate_wordcloud(raw_data_path_for_wordcloud, filename_for_save, filename_for_display)
         print("making wordcloud")
@@ -278,12 +293,24 @@ class getStartAndEndTiming():
         speech = data.transcript
         print(speech[0])
         global interaction_flag
-        if speech[0] == "初めまして":
+        global participants_id
+        if speech[0] == "初めまして" or speech[0] == "はじめまして":
+            rarm_client.init_pose()
             sound_client.say("こんにちは。ぼくはウモルといってね　　　人間のやりたいことを聞いて、いろんな想像をふくらませるのが好きなんだ。　　　　あなたのやりたいことを教えてくれる？")
             interaction_flag = True
+
+            participants_id = module.randomname()
+            now = datetime.datetime.now()
+            with open(save_data_path, mode="a") as save_file:
+                save_file.write(f"========= ID: {participants_id} , Time: {now}==========\n")
+            save_file.close()
+
         elif speech[0] == "またね" or speech[0] == "また":
+            rarm_client.reset_pose()
             interaction_flag = False
             sound_client.say("またね、またやりたいことが思い浮かんだら教えてね")
+            print("腕をここで開く")
+
 
 if __name__ == '__main__':
     rospy.init_node("test_node")
