@@ -295,7 +295,8 @@ class getStartAndEndTiming():
         global interaction_flag
         global participants_id
         if speech[0] == "初めまして" or speech[0] == "はじめまして":
-            rarm_client.init_pose()
+            rarm_client.reset_pose()
+            rarm_client.hug()
             sound_client.say("こんにちは。ぼくはウモルといってね　　　人間のやりたいことを聞いて、いろんな想像をふくらませるのが好きなんだ。　　　　あなたのやりたいことを教えてくれる？")
             interaction_flag = True
 
@@ -307,6 +308,7 @@ class getStartAndEndTiming():
 
         elif speech[0] == "またね" or speech[0] == "また":
             rarm_client.reset_pose()
+            rarm_client.init_pose()
             interaction_flag = False
             sound_client.say("またね、またやりたいことが思い浮かんだら教えてね")
             print("腕をここで開く")
