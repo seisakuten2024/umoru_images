@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/home/leus/anaconda3/envs/py38/bin/python
 # -*- coding: utf-8 -*-
 
 import rospy
@@ -26,11 +26,12 @@ sound_client = SoundClient(sound_action='robotsound_jp', sound_topic='robotsound
 rarm_client = MotionClient("rarm")
 client = OpenAI()
 
-raw_data_path = "data/raw/test0719.txt"
-raw_data_path_for_wordcloud = "data/raw/test0719_for_wordcloud.txt"
-analyzed_data_path = "data/analyzed/test0719.json"
-html_data_path = "data/html/test0719.html"
-save_data_path = "data/txt/save_text.txt"
+path_to_this_directory = "/home/leus/seisakuten_ws/src/umoru_images/umoru_images/for_exhibition/"
+raw_data_path = path_to_this_directory + "data/raw/test0719.txt"
+raw_data_path_for_wordcloud = path_to_this_directory + "data/raw/test0719_for_wordcloud.txt"
+analyzed_data_path = path_to_this_directory + "data/analyzed/test0719.json"
+html_data_path = path_to_this_directory + "data/html/test0719.html"
+save_data_path = path_to_this_directory + "data/txt/save_text.txt"
 print("generate picture")
 
 interaction_flag = False
@@ -228,7 +229,7 @@ class generatePictureNode():
 
     def save_image(self, url):
         now = datetime.datetime.now()
-        filename = "data/images/pictures/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" + participants_id + ".png"
+        filename = path_to_this_directory + "data/images/pictures/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" + participants_id + ".png"
         response = requests.get(url)
         img = Image.open(BytesIO(response.content))
         """ # 画像を表示
@@ -256,8 +257,8 @@ class generateWordcloudNode():
     def callback(self, data):
         global participants_id
         now = datetime.datetime.now()
-        filename_for_save =  "data/images/wordclouds/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" +  participants_id + ".png"
-        filename_for_display = "data/images/wordclouds/display.png"
+        filename_for_save =  path_to_this_directory + "data/images/wordclouds/log_" + now.strftime('%Y%m%d_%H%M%S') + "_" +  participants_id + ".png"
+        filename_for_display = path_to_this_directory + "data/images/wordclouds/display.png"
         module.generate_wordcloud(raw_data_path_for_wordcloud, filename_for_save, filename_for_display)
         print("making wordcloud")
 
@@ -265,6 +266,7 @@ class speakGeneratedText():
     def __init__(self):
         time.sleep(3)
         # Subscriberの作成
+        print("speakGeneratedText node")
         self.sub = rospy.Subscriber("/text_response", String, self.callback)
 
     def callback(self, data):
